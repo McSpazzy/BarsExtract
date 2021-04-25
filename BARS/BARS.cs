@@ -8,6 +8,8 @@ namespace BARS
 {
     public class BARSAudio
     {
+        public string Name;
+
         public BARSHeader Header;
         public AMTA[] AMTA;
         public BWAV[] BWAV;
@@ -20,7 +22,15 @@ namespace BARS
 
             for (var index = 0; index < Header.Count; ++index)
             {
-                AMTA[index] = new AMTA(reader, Header.Offsets[index], Header.SizeCache[Header.Offsets[index]]);
+                try
+                {
+                    AMTA[index] = new AMTA(reader, Header.Offsets[index], Header.SizeCache[Header.Offsets[index]]);
+                        
+                }
+                catch(Exception)
+                {
+                    Console.WriteLine(reader.BaseStream.Position);
+                }
             }
 
             reader.Seek(Header.BWAVStart, SeekOrigin.Begin);
@@ -34,8 +44,21 @@ namespace BARS
         public static BARSAudio Read(string filename)
         {
             if (!File.Exists(filename)) throw new FileNotFoundException(filename);
-            return new BARSAudio(new FileReader(new MemoryStream(File.ReadAllBytes(filename))));
+            var name = Path.GetFileNameWithoutExtension(filename);
+            return new BARSAudio(new FileReader(new MemoryStream(File.ReadAllBytes(filename)))) { Name = name};
         }
+
+        public void Export(string path, bool fileAsSubPath = false)
+        {
+            foreach (var bwav in BWAV)
+            {
+                var savePath = fileAsSubPath ? $"{path}\\{Name}\\" : $"{path}\\";
+                File.WriteAllBytes($@"{savePath}{bwav.Name}.bwav", bwav.Data);
+            }
+        }
+
+        public IEnumerable<string> List => BWAV.Select(b => b.Name);
+
     }
 
     public class BWAV
@@ -75,8 +98,9 @@ namespace BARS
             Version = reader.ReadUInt16();
             Length = reader.ReadUInt32();
             reader.Seek(24);
+            var offset = reader.ReadUInt32();
 
-            reader.SeekBegin(basePosition + 36 + reader.ReadUInt32());
+            reader.SeekBegin(basePosition + 36 + offset);
             Label = reader.ReadZeroTerminatedString();
             reader.SeekBegin(basePosition + Length);
         }
