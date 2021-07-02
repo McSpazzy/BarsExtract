@@ -95,7 +95,7 @@ namespace BARS
             {
                 var infoPath = $@"{savePath}\\duplicated_files.txt";
                 File.WriteAllBytes(infoPath, Encoding.UTF8.GetBytes(duplicatedFiles));
-                extraInfo = "AMTA tags more and bwav files.";
+                extraInfo = "AMTA tags more than bwav files.";
             }
 
         }
