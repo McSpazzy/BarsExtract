@@ -8,15 +8,14 @@ namespace BarsExtract
     {
         public static void Main(string[] args)
         {
-            // This is just a basic implementation of the class to extract files. 
-
             var filename = args[0];
-
             if (!File.Exists(filename))
             {
                 Console.WriteLine("File does not exist.");
                 return;
             }
+            filename = Path.GetFullPath(filename);
+
             var name = Path.GetFileNameWithoutExtension(filename);
             var dir = Path.GetDirectoryName(filename);
 

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "BarsExtract": {
+      "commandName": "Project",
+      "commandLineArgs": "test.bars"
+    }
+  }
+}
