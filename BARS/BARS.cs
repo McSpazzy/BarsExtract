@@ -13,7 +13,7 @@ namespace BARS
         public BARSHeader Header;
         public AMTA[] AMTA;
         public BWAV[] BWAV;
-        private string duplicatedFiles = "These files are the linked to the same content:\n\n";
+        private string duplicatedFiles = "";
         private Dictionary<uint, List<string>> bwavFileNames = new Dictionary<uint, List<string>>();
 
         public BARSAudio(FileReader reader)
@@ -81,16 +81,23 @@ namespace BARS
             return new BARSAudio(new FileReader(new MemoryStream(File.ReadAllBytes(filename)))) { Name = name};
         }
 
-        public void Export(string path, bool fileAsSubPath = false)
+        public void Export(string path, bool fileAsSubPath, out string extraInfo)
         {
+            extraInfo = "";
+
             var savePath = fileAsSubPath ? $"{path}\\{Name}\\" : $"{path}\\";
             foreach (var bwav in BWAV)
             {               
                 File.WriteAllBytes($@"{savePath}{bwav.Name}.bwav", bwav.Data);
             }
 
-            var infoPath = $@"{savePath}\\duplicated_files.txt";
-            File.WriteAllBytes(infoPath, Encoding.UTF8.GetBytes(duplicatedFiles));
+            if (duplicatedFiles != "")
+            {
+                var infoPath = $@"{savePath}\\duplicated_files.txt";
+                File.WriteAllBytes(infoPath, Encoding.UTF8.GetBytes(duplicatedFiles));
+                extraInfo = "AMTA tags more and bwav files.";
+            }
+
         }
 
         public IEnumerable<string> List => BWAV.Select(b => b.Name);
