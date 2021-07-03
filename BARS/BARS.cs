@@ -13,6 +13,8 @@ namespace BARS
         public BARSHeader Header;
         public AMTA[] AMTA;
         public BWAV[] BWAV;
+        private string duplicatedFiles = "";
+        private Dictionary<uint, List<string>> bwavFileNames = new Dictionary<uint, List<string>>();
 
         public BARSAudio(FileReader reader)
         {
@@ -24,12 +26,43 @@ namespace BARS
             {
                 try
                 {
-                    AMTA[index] = new AMTA(reader, Header.Offsets[index], Header.SizeCache[Header.Offsets[index]]);
-                        
+                    reader.Seek(Header.AMTAStartAddr[index], SeekOrigin.Begin);
+                    AMTA[index] = new AMTA(reader, Header.Offsets[index], Header.SizeCache[Header.Offsets[index]]);   
                 }
                 catch(Exception)
                 {
                     Console.WriteLine(reader.BaseStream.Position);
+                }
+            }
+
+            foreach (var AMTAEntry in AMTA)
+            {
+                if (!bwavFileNames.ContainsKey(AMTAEntry.DataOffset)) { bwavFileNames[AMTAEntry.DataOffset] = new List<string>(); };
+                bwavFileNames[AMTAEntry.DataOffset].Add(AMTAEntry.Label);
+            }
+
+            int idx = 0;
+            foreach (var elem in bwavFileNames)
+            {
+                var nameList = elem.Value;
+                if (nameList.Count > 1)
+                {
+                    var fileNames = "";
+                    foreach (var name in nameList)
+                    {
+                        fileNames += name;
+                        fileNames += "\n";
+                    }
+
+                    duplicatedFiles += "================";
+                    duplicatedFiles += idx;
+                    duplicatedFiles += "================\n";
+                    duplicatedFiles += fileNames;
+                    duplicatedFiles += "================";
+                    duplicatedFiles += "end";
+                    duplicatedFiles += "================\n\n";
+
+                    idx += 1;
                 }
             }
 
@@ -48,13 +81,23 @@ namespace BARS
             return new BARSAudio(new FileReader(new MemoryStream(File.ReadAllBytes(filename)))) { Name = name};
         }
 
-        public void Export(string path, bool fileAsSubPath = false)
+        public void Export(string path, bool fileAsSubPath, out string extraInfo)
         {
+            extraInfo = "";
+
+            var savePath = fileAsSubPath ? $"{path}\\{Name}\\" : $"{path}\\";
             foreach (var bwav in BWAV)
-            {
-                var savePath = fileAsSubPath ? $"{path}\\{Name}\\" : $"{path}\\";
+            {               
                 File.WriteAllBytes($@"{savePath}{bwav.Name}.bwav", bwav.Data);
             }
+
+            if (duplicatedFiles != "")
+            {
+                var infoPath = $@"{savePath}\\duplicated_files.txt";
+                File.WriteAllBytes(infoPath, Encoding.UTF8.GetBytes(duplicatedFiles));
+                extraInfo = "AMTA tags more than bwav files.";
+            }
+
         }
 
         public IEnumerable<string> List => BWAV.Select(b => b.Name);
@@ -112,8 +155,10 @@ namespace BARS
         public uint[] Hashes;
         public Dictionary<uint, uint> SizeCache = new Dictionary<uint, uint>();
         public List<uint> Offsets;
+        public int uniqueFileCount;
+        public uint AMTAStart = 0;
 
-        public uint AMTAStart { get; set; }
+        public List<uint> AMTAStartAddr;
         public uint BWAVStart => Offsets[0];
 
         public BARSHeader(FileReader reader)
@@ -134,11 +179,16 @@ namespace BARS
             Hashes = reader.ReadMultipleUInt32(Count);
 
             Offsets = new List<uint>();
+            AMTAStartAddr = new List<uint>();
 
             for (var index = 0; index < Count; ++index)
             {
-                var dataStart = reader.ReadUInt32();
-                if (AMTAStart == 0) AMTAStart = dataStart;
+                var data = reader.ReadUInt32();
+                if (AMTAStart == 0)
+                {
+                    AMTAStart = data;
+                }
+                AMTAStartAddr.Add(data);
 
                 var offset = reader.ReadUInt32();
                 if (offset == 0 || offset == uint.MaxValue)
@@ -150,6 +200,7 @@ namespace BARS
             }
 
             var uniqueOffsets = Offsets.Distinct().OrderBy(a => a).ToArray();
+            uniqueFileCount = uniqueOffsets.Length;
 
             for (var index = 0; index < uniqueOffsets.Length - 1; ++index)
             {

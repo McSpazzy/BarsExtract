@@ -6,30 +6,44 @@ namespace BarsExtract
 {
     public class Program
     {
+        private static void DumpABarFile(string filePath)
+        {
+            var name = Path.GetFileNameWithoutExtension(filePath);
+            var dir = Path.GetDirectoryName(filePath);
+            Directory.CreateDirectory($@"{dir}\{name}");
+            var fileIn = BARSAudio.Read(filePath);
+            string info;
+            fileIn.Export(dir, true, out info);
+            if (info != "")
+            {
+                Console.WriteLine(filePath + ": " + info);
+            }
+        }
+
         public static void Main(string[] args)
         {
-            // This is just a basic implementation of the class to extract files. 
-
-            var filename = args[0];
-
-            if (!File.Exists(filename))
+            try
             {
-                Console.WriteLine("File does not exist.");
-                return;
+                var filePath = args[0];
+                filePath = Path.GetFullPath(filePath);
+                FileAttributes attr = File.GetAttributes(filePath);
+                if (attr.HasFlag(FileAttributes.Directory))
+                {
+                    var files = Directory.GetFiles(filePath);
+                    foreach (var file in files)
+                    {
+                        DumpABarFile(file);
+                    }
+                }
+                else
+                {
+                    DumpABarFile(filePath);
+                }
             }
-            var name = Path.GetFileNameWithoutExtension(filename);
-            var dir = Path.GetDirectoryName(filename);
-
-            Directory.CreateDirectory($@"{dir}\{name}");
-
-            var fileIn = BARSAudio.Read(filename);
-
-            foreach (var itemName in fileIn.List)
+            catch (Exception e)
             {
-                Console.WriteLine($"{itemName}");
+                Console.WriteLine(e);
             }
-
-            fileIn.Export(dir, true);
         }
     }
 }
